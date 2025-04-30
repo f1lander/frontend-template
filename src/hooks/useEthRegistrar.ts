@@ -120,14 +120,14 @@ export function useEthRegistrar() {
 
     try {
       const available = await checkNameAvailability(name);
-      setIsAvailable(available);
+      setIsAvailable(available.isOk() ? available.value : false);
 
       if (!available) {
         setError(`${name}.eth is not available`);
         setCurrentStep(RegistrationStep.InputName);
       } else {
         const price = await getRentPrice(name, duration);
-        const priceWithBuffer = (price.base + price.premium) * BigInt(110) / BigInt(100);
+        const priceWithBuffer = (price.isOk() ? price.value.base + price.value.premium : BigInt(0)) * BigInt(110) / BigInt(100);
         setRentPriceWei(priceWithBuffer);
         
         setCurrentStep(RegistrationStep.MakeCommitment);
@@ -165,20 +165,20 @@ export function useEthRegistrar() {
         0
       );
       
-      setCommitment(commitmentHash);
+      setCommitment(commitmentHash.isOk() ? commitmentHash.value : '');
 
       if (walletClient) {
         const hash = await walletClient.writeContract({
           address: ETH_REGISTRAR_CONTROLLER_ADDRESS as `0x${string}`,
           abi: ethRegistrarControllerAbi,
           functionName: 'commit',
-          args: [commitmentHash],
+          args: [commitmentHash.isOk() ? commitmentHash.value : '0x' as `0x${string}`],
         });
 
         console.log('Commitment transaction hash:', hash);
         
         const timestamp = Date.now();
-        localStorage.setItem(COMMITMENT_KEY, commitmentHash);
+        localStorage.setItem(COMMITMENT_KEY, commitmentHash.isOk() ? commitmentHash.value : '');
         localStorage.setItem(SECRET_KEY, newSecret);
         localStorage.setItem(NAME_KEY, name);
         localStorage.setItem(COMMIT_TIMESTAMP_KEY, timestamp.toString());
