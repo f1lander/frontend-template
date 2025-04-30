@@ -2,50 +2,63 @@ import client from "@/lib/client";
 import { formatEther } from 'viem';
 import { ethRegistrarControllerAbi } from "@/lib/abis/eth-registrar-controller.abi";
 import { ETH_REGISTRAR_CONTROLLER_ADDRESS } from "@/lib/constants";
+import { ResultAsync, fromPromise } from 'neverthrow';
 
-// Check if a name is available
-export const checkNameAvailability = async (name: string): Promise<boolean> => {
-  try {
-    debugger;
-    const available = await client.readContract({
+type ContractError = {
+  type: 'AvailabilityCheck' | 'PriceFetch' | 'CommitmentCreation';
+  message: string;
+  cause?: unknown;
+}
+
+
+export const checkNameAvailability = (name: string): ResultAsync<boolean, ContractError> => {
+  return fromPromise(
+    client.readContract({
       address: ETH_REGISTRAR_CONTROLLER_ADDRESS as `0x${string}`,
       abi: ethRegistrarControllerAbi,
       functionName: "available",
       args: [name],
-    });
-    
-    return Boolean(available);
-  } catch (error) {
-    console.error('Error checking name availability:', error);
-    throw error;
-  }
+    }).then(available => Boolean(available)),
+    (error): ContractError => ({
+      type: 'AvailabilityCheck',
+      message: `Error checking if ${name}.eth is available`,
+      cause: error
+    })
+  );
 };
 
-export const getRentPrice = async (name: string, duration: number) => {
-  try {
-    const price = await client.readContract({
+
+export const getRentPrice = (name: string, duration: number): ResultAsync<{
+  base: bigint;
+  premium: bigint;
+  total: bigint;
+  formattedTotal: string;
+}, ContractError> => {
+  return fromPromise(
+    client.readContract({
       address: ETH_REGISTRAR_CONTROLLER_ADDRESS as `0x${string}`,
       abi: ethRegistrarControllerAbi,
       functionName: "rentPrice",
       args: [name, BigInt(duration)],
-    });
-    
-    const priceObj = price as { base: bigint; premium: bigint };
-    
-    return {
-      base: priceObj.base,
-      premium: priceObj.premium,
-      total: priceObj.base + priceObj.premium,
-      formattedTotal: formatEther(priceObj.base + priceObj.premium)
-    };
-  } catch (error) {
-    console.error('Error getting rent price:', error);
-    throw error;
-  }
+    }).then(price => {
+      const priceObj = price as { base: bigint; premium: bigint };
+      
+      return {
+        base: priceObj.base,
+        premium: priceObj.premium,
+        total: priceObj.base + priceObj.premium,
+        formattedTotal: formatEther(priceObj.base + priceObj.premium)
+      };
+    }),
+    (error): ContractError => ({
+      type: 'PriceFetch',
+      message: `Error getting rent price for ${name}.eth`,
+      cause: error
+    })
+  );
 };
 
-// Generate a commitment hash
-export const makeCommitmentHash = async (
+export const makeCommitmentHash = (
   name: string,
   owner: string,
   duration: number,
@@ -54,9 +67,9 @@ export const makeCommitmentHash = async (
   data: any[],
   reverseRecord: boolean,
   ownerControlledFuses: number
-) => {
-  try {
-    const hash = await client.readContract({
+): ResultAsync<`0x${string}`, ContractError> => {
+  return fromPromise(
+    client.readContract({
       address: ETH_REGISTRAR_CONTROLLER_ADDRESS as `0x${string}`,
       abi: ethRegistrarControllerAbi,
       functionName: "makeCommitment",
@@ -70,11 +83,11 @@ export const makeCommitmentHash = async (
         reverseRecord,
         ownerControlledFuses
       ],
-    });
-    
-    return hash as `0x${string}`;
-  } catch (error) {
-    console.error('Error making commitment hash:', error);
-    throw error;
-  }
+    }).then(hash => hash as `0x${string}`),
+    (error): ContractError => ({
+      type: 'CommitmentCreation',
+      message: `Error making commitment hash for ${name}.eth`,
+      cause: error
+    })
+  );
 };
