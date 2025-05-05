@@ -13,6 +13,10 @@ export const NETWORK = {
     chainId: 11155111,
     rpcUrl: process.env.NEXT_PUBLIC_RPC_URL,
   },
+  HOLESKY: {
+    chainId: 17000,
+    rpcUrl: process.env.NEXT_PUBLIC_RPC_URL,
+  },
 } as const;
 
 export type NETWORK_TYPE = (typeof NETWORK)[keyof typeof NETWORK];

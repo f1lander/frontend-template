@@ -17,7 +17,7 @@ import {
 import { Alert } from '@/components/ui/alert'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { Stepper } from '@/components/ui/Stepper'
-import { useEthRegistrar, RegistrationStep } from '@/hooks/useEthRegistrar'
+import { useEthRegistrar, RegistrationStep } from '@/hooks/useEthRegistrarXstate'
 import { Section } from '@/components/ui/Section'
 import { ButtonsContainer } from '@/components/ui/ButtonsContainer'
 import { HashDisplay } from '@/components/ui/HashDisplay'
@@ -58,7 +58,6 @@ const ENSRegistration = () => {
     makeCommitment,
     registerName,
     resetForm,
-    loadSavedData,
     commitment,
     commitTxHash,
     registerTxHash
@@ -67,17 +66,14 @@ const ENSRegistration = () => {
   useEffect(() => {
     const newCompletedSteps: number[] = [];
     
-    // Mark all previous steps as completed
     for (let i = 0; i < currentStep; i++) {
       newCompletedSteps.push(i);
     }
     
-    // Special case: if we're at the Register step, mark the Wait step as completed
     if (currentStep === RegistrationStep.Register) {
       newCompletedSteps.push(RegistrationStep.WaitForCommitment);
     }
     
-    // Special case: if we're at the Success step, mark all steps as completed
     if (currentStep === RegistrationStep.Success) {
       for (let i = 0; i < STEP_LABELS.length; i++) {
         newCompletedSteps.push(i);
@@ -87,11 +83,7 @@ const ENSRegistration = () => {
     setCompletedSteps(newCompletedSteps);
   }, [currentStep]);
 
-  useEffect(() => {
-    loadSavedData();
-  }, []);
 
-  // Render the current step
   const renderStep = () => {
     if (!isConnected) {
       return (
@@ -103,6 +95,56 @@ const ENSRegistration = () => {
 
     switch (currentStep) {
       case RegistrationStep.InputName:
+        if (error && error.includes('not available')) {
+          return (
+            <>
+              <Section>
+                <Alert variant="error" title="Name not available">
+                  {name}.eth is already registered. Please try a different name.
+                </Alert>
+              </Section>
+              
+              <Section>
+                <Field label="Name">
+                  <Input 
+                    label=""
+                    placeholder="ethdax"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    suffix=".eth"
+                  />
+                </Field>
+              </Section>
+              
+              <Section>
+                <Field label="Duration">
+                  <Select 
+                    label=""
+                    options={[
+                      { value: '31536000', label: '1 year' },
+                      { value: '63072000', label: '2 years' },
+                      { value: '94608000', label: '3 years' },
+                      { value: '157680000', label: '5 years' }
+                    ]}
+                    value={duration.toString()}
+                    onChange={(e) => setDuration(parseInt(e.target.value))}
+                  />
+                </Field>
+              </Section>
+              
+              <Button
+                onClick={checkAvailability}
+                disabled={isLoading || !name}
+                loading={isLoading}
+                colorStyle="accentPrimary"
+                prefix={<Search size={18} />}
+              >
+                {isLoading ? 'Checking...' : 'Check Availability'}
+              </Button>
+            </>
+          );
+        }
+        
         return (
           <>
             <Section>
@@ -373,7 +415,7 @@ const ENSRegistration = () => {
 
   return (
     <Card>
-      {error && (
+      {error && !error.includes('not available') && (
         <Alert variant="error" title="Error" description={error} />
       )}
       
