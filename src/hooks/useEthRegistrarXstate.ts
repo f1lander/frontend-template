@@ -29,18 +29,29 @@ export function useEthRegistrar() {
 
   const [state, send] = useMachine(registrarMachine);
 
+  // TODO: Refactor later to use actors invoke feature instead of useEffect
   useEffect(() => {
-    if (isTxConfirmed && writeData && state.matches('registering')) {
-      send({
-        type: 'REGISTRATION_RESULT',
-        txHash: writeData
-      });
+    console.log('State changed:', state.value.toString());
+    console.log('Current context:', state.context);
+  }, [state]);
+
+  useEffect(() => {
+    if (isTxConfirmed && writeData) {
+      if (state.matches('registering') || state.value.toString().includes('registering')) {
+        console.log('Transaction confirmed, sending REGISTRATION_RESULT event');
+        send({
+          type: 'REGISTRATION_RESULT',
+          txHash: writeData
+        });
+      }
     }
 
     if (writeError) {
       send({
         type: 'ERROR',
-        message: writeError.message || 'Transaction failed'
+        message: typeof writeError === 'object' && writeError !== null && 'message' in writeError 
+          ? String(writeError.message) 
+          : 'Transaction failed'
       });
     }
   }, [isTxConfirmed, writeData, state.value, writeError, send]);
@@ -182,6 +193,8 @@ export function useEthRegistrar() {
     }
 
     try {
+      send({ type: 'REGISTER' });
+      
       writeContract({
         address: ETH_REGISTRAR_CONTROLLER_ADDRESS as `0x${string}`,
         abi: ethRegistrarControllerAbi,
@@ -199,7 +212,7 @@ export function useEthRegistrar() {
         value: state.context.rentPriceWei
       }, {
         onSuccess(hash) {
-          send({ type: 'REGISTRATION_RESULT', txHash: hash });
+          console.log('Registration transaction submitted:', hash);
         },
         onError(error) {
           send({
