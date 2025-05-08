@@ -1,5 +1,5 @@
 
-import { mainnet, sepolia } from 'viem/chains';
+import { mainnet, sepolia, holesky } from 'viem/chains';
 import { createPublicClient, http } from 'viem';
 import { Chain } from 'viem/chains';
 
@@ -8,6 +8,7 @@ import { NETWORK_TYPE, NETWORK, RPC_URL, CHAIN_ID } from '@/lib/constants';
 export const CHAINS: Record<NETWORK_TYPE['chainId'], Chain> = {
   [NETWORK.MAINNET['chainId']]: mainnet,
   [NETWORK.SEPOLIA['chainId']]: sepolia,  
+  [NETWORK.HOLESKY['chainId']]: holesky,
 };
 
 const client = createPublicClient({
